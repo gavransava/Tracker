@@ -1,18 +1,43 @@
 package com.myexamples.tracker;
 
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.location.Location;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
+import android.util.Log;
+import android.view.View;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
+        GoogleApiClient.ConnectionCallbacks, ActivityCompat.OnRequestPermissionsResultCallback,
+        GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private GoogleMap mMap;
+    private GoogleApiClient mGoogleApiClient;
+    Location previousLocation;
+    private boolean isFirstLocation;
+    private boolean trackingStarted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,6 +47,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        isFirstLocation = true;
+        trackingStarted = false;
+        previousLocation = null;
     }
 
 
@@ -34,13 +62,94 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * it inside the SupportMapFragment. This method will only be triggered once the user has
      * installed Google Play services and returned to the app.
      */
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        if (isLocationPermissionGranted()) {
+            startLocationDependentServices();
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{"android.permission.ACCESS_FINE_LOCATION"}, 0);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (isLocationPermissionGranted()) {
+            startLocationDependentServices();
+        }
+    }
+
+    private boolean isLocationPermissionGranted () {
+        return ContextCompat.checkSelfPermission(this, "android.permission.ACCESS_FINE_LOCATION")
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void startLocationDependentServices() {
+        mMap.setMyLocationEnabled(true);
+        mGoogleApiClient
+                = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this).enableAutoManage(this, this)
+                .build();
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+
+        LocationRequest locationRequest = new LocationRequest();
+        locationRequest.setInterval(20*1000);
+        locationRequest.setSmallestDisplacement(5);
+        locationRequest.setFastestInterval(5*1000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+        PendingResult<Status> pendingResult = LocationServices.FusedLocationApi.requestLocationUpdates(
+                mGoogleApiClient, locationRequest, this);
+        Log.d(getClass().getName(), "Location update started ..............: ");
+    }
+
+    @Override
+    public void onConnectionSuspended(int i){
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        if(isFirstLocation) {
+            addMarker(location);
+            previousLocation = location;
+            isFirstLocation = false;
+        }
+        if(trackingStarted)
+            drawLine(location);
+
+        previousLocation = location;
+        Log.d(getClass().getName(), location.toString());
+    }
+
+    public void startTracking(View view) {
+        trackingStarted = true;
+    }
+
+    public void addMarker(Location location) {
+        LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
+        mMap.addMarker(new MarkerOptions().position(currentLocation).title("Start Location"));
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
+    }
+    public void drawLine(Location location){
+        mMap.addPolyline(new PolylineOptions()
+                .add(new LatLng(previousLocation.getLatitude(), previousLocation.getLongitude()),
+                        new LatLng(location.getLatitude(), location.getLongitude()))
+                .width(5)
+                .color(Color.RED));
     }
 }
