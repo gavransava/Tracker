@@ -152,4 +152,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .width(5)
                 .color(Color.RED));
     }
+    //TODO: Add tabbed view with: distance traversed, avg. speed...
+    //TODO: (taxy cab fare.. (start + km * pricePerKM + IdleTime * pricePerTimeSpentIdle)
+    //TODO: Save and Load existing tracks from DB for example.
 }
