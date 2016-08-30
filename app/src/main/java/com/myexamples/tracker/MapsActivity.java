@@ -36,7 +36,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private GoogleApiClient mGoogleApiClient;
     Location previousLocation;
-    private boolean isFirstLocation;
+
+    // isFirstAccurateLocation is a a simple counter with
+    // which is deduced what location is regarded as starting point
+    // (first location sent is not very accurate)
+    private Integer firstAccurateLocationCounter;
+    private final static Integer LOCATION_ACCURACY = 3;
     private boolean trackingStarted;
 
     @Override
@@ -47,7 +52,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        isFirstLocation = true;
+        firstAccurateLocationCounter = 0;
         trackingStarted = false;
         previousLocation = null;
     }
@@ -123,15 +128,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-        if(isFirstLocation) {
+
+        if(firstAccurateLocationCounter==0)
+            zoomToCurrentLocation(location);
+        else if (firstAccurateLocationCounter<LOCATION_ACCURACY)
+            return;
+        else if(firstAccurateLocationCounter==LOCATION_ACCURACY)
             addMarker(location);
-            previousLocation = location;
-            isFirstLocation = false;
-        }
+
+        firstAccurateLocationCounter++;
+        previousLocation = location;
         if(trackingStarted)
             drawLine(location);
-
-        previousLocation = location;
         Log.d(getClass().getName(), location.toString());
     }
 
@@ -141,7 +149,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void addMarker(Location location) {
         LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
         mMap.addMarker(new MarkerOptions().position(currentLocation).title("Start Location"));
+    }
+
+    public void zoomToCurrentLocation(Location location) {
+        LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
         mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
         mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
     }
