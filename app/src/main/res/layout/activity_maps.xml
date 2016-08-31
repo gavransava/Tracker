@@ -8,13 +8,12 @@
     tools:context="com.myexamples.tracker.MapsActivity">
 
     <Button
+        android:id="@+id/track"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start|top"
+        android:layout_gravity="center|top"
         android:onClick="startTracking"
         android:text="@string/track"
         android:padding="10dp"
-        android:layout_marginTop="20dp"
-        android:layout_marginLeft="20dp"
-        android:paddingRight="10dp"/>
+        android:layout_marginTop="20dp"/>
 </fragment>

@@ -1,5 +1,6 @@
 package com.myexamples.tracker;
 
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
@@ -11,6 +12,8 @@ import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -128,41 +131,51 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-
-        if(firstAccurateLocationCounter==0)
-            zoomToCurrentLocation(location);
-        else if (firstAccurateLocationCounter<LOCATION_ACCURACY)
+        LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
+        if(firstAccurateLocationCounter==0) {
+            firstAccurateLocationCounter++;
+            zoomToLocation(currentLocation);
             return;
-        else if(firstAccurateLocationCounter==LOCATION_ACCURACY)
-            addMarker(location);
+        }
+        else if (firstAccurateLocationCounter<LOCATION_ACCURACY) {
+            firstAccurateLocationCounter++;
+            return;
+        }
 
-        firstAccurateLocationCounter++;
-        previousLocation = location;
         if(trackingStarted)
-            drawLine(location);
+            drawLine(currentLocation);
+        previousLocation = location;
         Log.d(getClass().getName(), location.toString());
     }
 
     public void startTracking(View view) {
-        trackingStarted = true;
+        if(previousLocation != null){
+            trackingStarted = true;
+            addMarker(new LatLng(previousLocation.getLatitude(),
+                    previousLocation.getLongitude()));
+            Button track = (Button) findViewById(R.id.track);
+            track.setEnabled(false);
+        } else {
+            Context context = getApplicationContext();
+            int duration = Toast.LENGTH_SHORT;
+            Toast toast = Toast.makeText(context, R.string.no_location, duration);
+            toast.show();
+        }
     }
 
-    public void addMarker(Location location) {
-        LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
-        mMap.addMarker(new MarkerOptions().position(currentLocation).title("Start Location"));
+    public void addMarker(LatLng location) {
+        zoomToLocation(location);
+        mMap.addMarker(new MarkerOptions().position(location).title("Start Location"));
     }
 
-    public void zoomToCurrentLocation(Location location) {
-        LatLng currentLocation = new LatLng(location.getLatitude(),location.getLongitude());
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(currentLocation));
+    public void zoomToLocation(LatLng location) {
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(location));
         mMap.animateCamera(CameraUpdateFactory.zoomTo(15));
     }
-    public void drawLine(Location location){
+    public void drawLine(LatLng location){
         mMap.addPolyline(new PolylineOptions()
                 .add(new LatLng(previousLocation.getLatitude(), previousLocation.getLongitude()),
-                        new LatLng(location.getLatitude(), location.getLongitude()))
+                        location)
                 .width(5)
                 .color(Color.RED));
     }
